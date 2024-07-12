@@ -1,0 +1,269 @@
+import "Srl/Time";
+import "Srl/StringBuilder";
+import "Build";
+import "Apm";
+Apm.importFile("Alusus/WebPlatform");
+Apm.importFile("Alusus/Rows", { "Rows.alusus", "Drivers/Postgresql.alusus" });
+Apm.importFile("Alusus/Nashir");
+use Srl;
+use WebPlatform;
+
+def JsonStringBuilder: alias StringBuilder[JsonStringBuilderMixin];
+
+//==============================================================================
+// Database
+
+@model["passenger"]
+class PassengerModel {
+    Rows.define_model_essentials[];
+
+    @notNull
+    @primaryKey
+    @Integer
+    @column["passengerid"]
+    def id: ArchInt;
+
+    @VarChar
+    @notNull
+    @column["name"]
+    def name: String;
+
+    @VarChar
+    @notNull
+    @column["ticket"]
+    def ticket: String;
+
+    @VarChar
+    @notNull
+    @column["hometown"]
+    def hometown: String;
+
+    @VarChar
+    @notNull
+    @column["destination"]
+    def destination: String;
+
+    @VarChar
+    @notNull
+    @column["boarded"]
+    def boarded: String;
+
+    handler this.toJson(str: ref[JsonStringBuilder]) {
+        str.format(
+            "{"
+                "\"id\": %l, "
+                "\"name\": %js, "
+                "\"ticket\": %js, "
+                "\"hometown\": %js, "
+                "\"destination\": %js, "
+                "\"boarded\": %js"
+            "}",
+            this.id,
+            this.name,
+            this.ticket,
+            this.hometown,
+            this.destination,
+            this.boarded
+        );
+    }
+}
+
+function getDbDriver(): SrdRef[Rows.Driver] {
+    def driver: SrdRef[Rows.Driver] = Rows.PostgresqlDriver(Rows.ConnectionParams().{
+        dbName = "titanic";
+        userName = "titanic";
+        password = "titanic";
+        host = "localhost";
+        port = 5432;
+    });
+    if !driver.isConnected() {
+        System.fail(1, String("Error connecting to DB: ") + driver.getLastError());
+    }
+    return driver;
+}
+
+def db: Rows.Db;
+
+//==============================================================================
+// Backend
+
+@beEndpoint["GET", "/passengers"]
+func getPassengers (conn: ptr[Http.Connection]) {
+    def clock0: ArchInt = Time.getClock();
+    def passengers: Array[SrdRef[PassengerModel]] = db.from[PassengerModel].select();
+    def clock1: ArchInt = Time.getClock();
+    // Console.print("Fetching from DB: %ld\n", clock1 - clock0);
+
+    def response: JsonStringBuilder(500000, 500000);
+    response += '[';
+    def i: Int;
+    def j: Int;
+    // Duplicate the data to simulate larger data sets.
+    for j = 0, j < 1, ++j {
+        for i = 0, i < passengers.getLength(), ++i {
+            if i != 0 or j != 0 response += ",\n";
+            passengers(i).toJson(response);
+        }
+    }
+    response += ']';
+
+    def clock2: ArchInt = Time.getClock();
+    // Console.print("Generating JSON: %ld\n", clock2 - clock1);
+
+    Http.print(conn, "HTTP/1.1 200 Ok\r\n");
+    Http.print(conn, "Content-Type: application/json\r\n");
+    Http.print(conn, "Cache-Control: no-cache\r\n");
+    Http.print(conn, "Content-Length: %d\r\n\r\n", response.getLength());
+    Http.print(conn, response);
+    Console.print("Response sent: 200\n");
+    // Console.print("Total: %ld\n", clock2 - clock0);
+}
+
+//==============================================================================
+// Frontend
+
+class Row {
+    @injection def component: Component;
+    def name: String;
+
+    handler this~init(index: Int, name: String, ticket: String, hometown: String, destination: String, boarded: String) {
+        this.name = name;
+        this.view = Box({}).{
+            style.{
+                display = Display.FLEX;
+                layout = Layout.ROW;
+                width = Length.px(200*15);
+            };
+            addChildren({
+                Text(String() + index),
+                Text(name),
+                Text(ticket),
+                Text(hometown),
+                Text(destination),
+                Text(boarded),
+                // Duplicate the columns to simulate large tables.
+                Text(name),
+                Text(ticket),
+                Text(hometown),
+                Text(destination),
+                Text(boarded),
+                Text(name),
+                Text(ticket),
+                Text(hometown),
+                Text(destination),
+                Text(boarded)
+            });
+        };
+    }
+
+    handler this.onFilter(n: String) {
+        if this.name.compare(n, n.getLength()) == 0 this.view.style.display = Display.FLEX
+        else this.view.style.display = Display.NONE;
+    }
+
+    handler this.updateName(newName: String) {
+        this.name = newName;
+        this.view.obj~cast[ref[Box]].children(1).obj~cast[ref[Text]].text = this.name;
+    }
+
+    handler this_type(i: Int, n: String, t: String, h: String, d: String, b: String): SrdRef[Row] {
+        return SrdRef[Row]().{ alloc()~init(i, n, t, h, d, b) };
+    }
+}
+
+@uiEndpoint["/"]
+@title["WebPlatform Example - Chat"]
+func main {
+    def input: SrdRef[Input];
+    def box: SrdRef[Box];
+
+    Window.instance.setView(Box({}).{
+        style(">>$span").{
+            borderWidth = Length4.px(1);
+            borderStyle = BorderStyle.SOLID;
+            width = Length.px(200);
+        };
+        addChildren({
+            Input().{
+                onKeyUp.connect(closure (box: by_ref) & (ref[Input], ref[String]) {
+                    def i: ArchInt;
+                    for i = 0, i < box.children.getLength(), ++i {
+                        box.children(i).obj~cast[ref[Row]].onFilter(this.getText());
+                    }
+                });
+            },
+            Input().{
+                input = this;
+            },
+            Button().{
+                text = String("Update");
+                onClick.connect(closure (input: by_ref, box: by_ref) & (ref[Widget], ref[Int]) {
+                    def cmd: Array[String] = input.getText().split("=");
+                    def i: ArchInt;
+                    for i = 0, i < box.children.getLength(), ++i {
+                        if box.children(i).obj~cast[ref[Row]].name == cmd(0) {
+                            box.children(i).obj~cast[ref[Row]].updateName(cmd(1));
+                        }
+                    }
+                });
+            },
+            Button().{
+                text = String("Add");
+                onClick.connect(closure (input: by_ref, box: by_ref) & (ref[Widget], ref[Int]) {
+                    def name: String = input.getText();
+                    box.insertChild(0, Row(
+                        0,
+                        name,
+                        String(),
+                        String(),
+                        String(),
+                        String(),
+                    ));
+                });
+            },
+            Row(0, String("name"), String("ticket"), String("hometown"), String("destination"), String("boarded")),
+            Box({}).{
+                box = this;
+                sendRequest("GET", "/passengers", null, null, 5000, closure (json: Json) {
+                    def status: Int[64] = json("eventData")("status");
+                    if status >= 200 and status < 300 {
+                        def jsonStr: String = json("eventData")("body")~cast[String]
+                        def passengers: Json(jsonStr);
+                        def i: Int;
+                        for i = 0, i < passengers.getLength(), ++i {
+                            this.addChildren({ Row(
+                                i + 1,
+                                passengers(i)("name"),
+                                passengers(i)("ticket"),
+                                passengers(i)("hometown"),
+                                passengers(i)("destination"),
+                                passengers(i)("boarded"),
+                            ) });
+                        }
+                    } else {
+                        logToConsole(String("Fetch error: ") + status);
+                    }
+                });
+            }
+        });
+    });
+
+    runEventLoop();
+}
+
+//==============================================================================
+// Entry Point
+
+func startServer {
+    db.init(closure(d: ref[SrdRef[Rows.Driver]]) {
+        d = getDbDriver();
+    });
+    Console.print("Starting server on port 8010...\nURL: http://localhost:8010/\n");
+    runServer({ "listening_ports", "8010", "static_file_max_age", "0", "num_threads", "8" });
+}
+
+Nashir.verbose = false;
+Nashir.initialize[];
+Nashir.dependencies.add(WebPlatform.getBuildDependencies());
+Nashir.dependencies.add(Rows.PostgresqlDriver.getBuildDependencies());
+Nashir.startup[startServer];

@@ -1,0 +1,11 @@
+version: '3'
+name: titanic
+services:
+  db:
+    image: postgres:13-alpine
+    container_name: titanic_postgres
+    environment:
+      POSTGRES_USER: titanic
+      POSTGRES_PASSWORD: titanic
+    ports:
+      - 5432:5432
