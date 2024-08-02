@@ -71,6 +71,7 @@ function App() {
 
   return (
     <div className="App">
+      <h1>React/NodeJS Example: Titanic Passenger List</h1>
       <input
         type="text"
         value={filter}
@@ -84,9 +85,11 @@ function App() {
       <button onClick={handleFilterChange}>Update</button>
       <button onClick={handleAdd}>Add</button>
       <Row name="name" ticket="ticket" hometown="hometown" destination="destination" boarded="boarded" />
-      {useMemo(() => (<Rows rows={filteredPeople} />), [filteredPeople])}
+      <Rows rows={filteredPeople} />
+      {/* useMemo(() => (<Rows rows={filteredPeople} />), [filteredPeople]) */}
     </div>
   );
 }
 
 export default App;
+

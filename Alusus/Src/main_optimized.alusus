@@ -94,10 +94,7 @@ func getPassengers (conn: ptr[Http.Connection]) {
     Rows.Query[PassengerModel].getColumnNames();
     Rows.Query[PassengerModel].getColumnVarNames();
     Memory.runWithPreallocation(4 * 1024 * 1024 /* 4MB */, 1 * 1024 * 1024 /* 1MB */, true, closure () {
-        def clock0: ArchInt = Time.getClock();
         def passengers: Array[SrdRef[PassengerModel]] = db.from[PassengerModel].select();
-        def clock1: ArchInt = Time.getClock();
-        // Console.print("Fetching from DB: %ld\n", clock1 - clock0);
 
         def response: JsonStringBuilder(500000, 500000);
         response += '[';
@@ -112,16 +109,12 @@ func getPassengers (conn: ptr[Http.Connection]) {
         }
         response += ']';
 
-        def clock2: ArchInt = Time.getClock();
-        // Console.print("Generating JSON: %ld\n", clock2 - clock1);
-
         Http.print(conn, "HTTP/1.1 200 Ok\r\n");
         Http.print(conn, "Content-Type: application/json\r\n");
         Http.print(conn, "Cache-Control: no-cache\r\n");
         Http.print(conn, "Content-Length: %d\r\n\r\n", response.getLength());
         Http.print(conn, response);
         Console.print("Response sent: 200\n");
-        // Console.print("Total: %ld\n", clock2 - clock0);
     });
 }
 
@@ -178,7 +171,7 @@ class Row {
 }
 
 @uiEndpoint["/"]
-@title["WebPlatform Example - Chat"]
+@title["Alusus/WebPlatform Example: Titanic Passenger List"]
 func main {
     def input: SrdRef[Input];
     def box: SrdRef[Box];
@@ -190,6 +183,7 @@ func main {
             width = Length.px(200);
         };
         addChildren({
+            Text(String("h1"), String("Alusus/WebPlatform Example: Titanic Passenger List")),
             Input().{
                 onKeyUp.connect(closure (box: by_ref) & (ref[Input], ref[String]) {
                     def i: ArchInt;
@@ -211,6 +205,20 @@ func main {
                             box.children(i).obj~cast[ref[Row]].updateName(cmd(1));
                         }
                     }
+                });
+            },
+            Button().{
+                text = String("Add");
+                onClick.connect(closure (input: by_ref, box: by_ref) & (ref[Widget], ref[Int]) {
+                    def name: String = input.getText();
+                    box.insertChild(0, Row(
+                        0,
+                        name,
+                        String(),
+                        String(),
+                        String(),
+                        String(),
+                    ));
                 });
             },
             Row(0, String("name"), String("ticket"), String("hometown"), String("destination"), String("boarded")),
