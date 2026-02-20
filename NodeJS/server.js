@@ -49,7 +49,7 @@ app.get('/api/passengers', async (req, res) => {
         ...passengers,
         ...passengers,
         ...passengers,
-    ] */
+    ]; */
     res.set('Access-Control-Allow-Origin', '*');
     res.json(result);
   } catch (err) {
@@ -67,3 +67,4 @@ app.listen(PORT, async () => {
   }
   console.log(`Server is running on port ${PORT}`);
 });
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import './App.css';
 
 const Row = (props) => {
@@ -20,9 +20,9 @@ const Row = (props) => {
     <span>{props.destination}</span>
     <span>{props.boarded}</span>
   </div>
-}
+};
 
-const Rows = (props) => {
+const Rows = memo((props) => {
   return <div>
     {props.rows.map((person, index) => (
       <Row
@@ -36,7 +36,7 @@ const Rows = (props) => {
       />
     ))}
   </div>
-}
+});
 
 function App() {
   const [passengers, setPassengers] = useState([]);
@@ -86,7 +86,6 @@ function App() {
       <button onClick={handleAdd}>Add</button>
       <Row name="name" ticket="ticket" hometown="hometown" destination="destination" boarded="boarded" />
       <Rows rows={filteredPeople} />
-      {/* useMemo(() => (<Rows rows={filteredPeople} />), [filteredPeople]) */}
     </div>
   );
 }

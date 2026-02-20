@@ -5,7 +5,7 @@ import "Apm";
 Apm.importFile("Alusus/WebPlatform");
 Apm.importFile("Alusus/Rows", { "Rows.alusus", "Drivers/Postgresql.alusus" });
 Apm.importFile("Alusus/ExtendedMemory");
-Apm.importFile("Alusus/Nashir");
+Apm.importFile("Alusus/Nashir", { "Nashir.alusus", "PublishDrivers/AlususNet.alusus" });
 use Srl;
 use WebPlatform;
 
@@ -254,17 +254,21 @@ func main {
 //==============================================================================
 // Entry Point
 
-func startServer {
+func initializeServer {
     Memory.initializePreallocation();
     db.init(closure(d: ref[SrdRef[Rows.Driver]]) {
         d = getDbDriver();
     });
-    Console.print("Starting server on port 8010...\nURL: http://localhost:8010/\n");
-    runServer({ "listening_ports", "8010", "static_file_max_age", "0", "num_threads", "8" });
 }
 
-Nashir.verbose = false;
-Nashir.initialize[];
-Nashir.dependencies.add(WebPlatform.getBuildDependencies());
-Nashir.dependencies.add(Rows.PostgresqlDriver.getBuildDependencies());
-Nashir.startup[startServer];
+Nashir.setup[Nashir.Config().{
+    projectName = "Titanic";
+    projectVersion = "v1";
+    serverPort = 8010;
+    dependencies.add(Array[String]().{
+        add(Rows.PostgresqlDriver.getBuildDependencies());
+    });
+    initializer~no_deref = initializeServer~ast;
+    publishDriver = Nashir.AlususNetPublishDriver(String("titanic"));
+}];
+ProgArg.parse(2);
