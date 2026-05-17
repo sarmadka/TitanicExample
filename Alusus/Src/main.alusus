@@ -2,9 +2,9 @@ import "Srl/Time";
 import "Srl/StringBuilder";
 import "Build";
 import "Apm";
-Apm.importFile("Alusus/WebPlatform");
-Apm.importFile("Alusus/Rows", { "Rows.alusus", "Drivers/Postgresql.alusus" });
-Apm.importFile("Alusus/Nashir", { "Nashir.alusus", "PublishDrivers/AlususNet.alusus" });
+Apm.importPackage("Alusus/WebPlatform@0.9");
+Apm.importPackage("Alusus/Rows@0.4", { "Rows.alusus", "Drivers/Postgresql.alusus" });
+Apm.importPackage("Alusus/Nashir@0.6", { "Nashir.alusus", "PublishDrivers/AlususNet.alusus" });
 use Srl;
 use WebPlatform;
 
